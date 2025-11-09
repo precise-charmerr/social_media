@@ -1,0 +1,20 @@
+Points learnt while doing backend(springboot)
+
+# details of pom.xml
+* <modelVersion> this specifies that POM model will be used.
+* <parent> Inherits configuration from the spring-boot-starter-parent POM. The spring-boot-starter-parent 
+    provides default configurations for Spring Boot projects, such as dependency versions and plugin configurations.
+* <properties> tell that java 17 will be used.
+* <dependency> it will tell which JARs will be downloaded.
+    1. spring-boot-starter-web -> helps working with REST APIs.
+    2. spring-boot-starter-data-jpa -> helps working with database.
+    3. mysql-connector-java -> provides jdbc driver for mySQL connection.
+    4. spring-boot-starter-security -> helps with authentication and authorization.
+    5. lombok -> helps with generating boilerplate code, getters/setters/constructor
+    6. spring-boot-starter-test -> provides testing libraries.
+* <build> helps configuring the build process.
+    <plugin> in that which is `spring-boot-maven-plugin` enables Spring Boot-specific tasks like 
+    running the application (mvn spring-boot:run) and creating executable JARs.
+    <exclude> is excluding lombok from final JAR to not increase the size of it as when .class is created,
+    lombok's job is to create getter/setter/constructor, so all this is done at compile time which is in
+    .class, so during runtime lombok wont be required
