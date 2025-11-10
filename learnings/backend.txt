@@ -4,6 +4,11 @@ Points learnt while doing backend(springboot)
 * <modelVersion> this specifies that POM model will be used.
 * <parent> Inherits configuration from the spring-boot-starter-parent POM. The spring-boot-starter-parent 
     provides default configurations for Spring Boot projects, such as dependency versions and plugin configurations.
+	To see final pom.xml with <parent>, you can view it using: 
+	mvn help:effective-pom									# produce effective POM to stdout
+	mvn help:effective-pom -Doutput=effective-pom.xml		# or write it to a file to inspect
+# or write it to a file to inspect
+mvn help:effective-pom -Doutput=effective-pom.xml
 * <properties> tell that java 17 will be used.
 * <dependency> it will tell which JARs will be downloaded.
     1. spring-boot-starter-web -> helps working with REST APIs.
