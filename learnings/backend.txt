@@ -23,3 +23,46 @@ mvn help:effective-pom -Doutput=effective-pom.xml
     <exclude> is excluding lombok from final JAR to not increase the size of it as when .class is created,
     lombok's job is to create getter/setter/constructor, so all this is done at compile time which is in
     .class, so during runtime lombok wont be required
+
+
+Details of Maven Scopes and Transitivity:
+
+Maven dependency scopes affect how dependencies are included in various build phases and how they are propagated to dependent projects:
+
+1. compile (default scope)
+Example: spring-core
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-core</artifactId>
+    <scope>compile</scope>
+</dependency>
+Why: Core framework classes needed throughout the application lifecycle. If your module depends on another module that uses spring-core, you'll get it transitively because it's needed for compilation and runtime.
+
+2. provided
+Example: javax.servlet-api
+<dependency>
+    <groupId>javax.servlet</groupId>
+    <artifactId>javax.servlet-api</artifactId>
+    <scope>provided</scope>
+</dependency>
+Why: Servlet containers like Tomcat already include this. It's transitive for compilation (so other modules can compile against servlet APIs) but won't be packaged to avoid conflicts with the container's version.
+
+3. runtime
+Example: mysql-connector-java (as used in our pom.xml)
+<dependency>
+    <groupId>mysql</groupId>
+    <artifactId>mysql-connector-java</artifactId>
+    <scope>runtime</scope>
+</dependency>
+Why: JDBC driver isn't needed for compilation (you code against JDBC interfaces), but required at runtime. Transitive because any module using your database layer needs the driver at runtime.
+
+4. test
+Example: spring-boot-starter-test (as used in our pom.xml)
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency>
+Why: Testing frameworks are only needed for testing. NOT transitive because your module's tests are internal - other modules using your code don't need your test dependencies.
+
+Details of application.properties
