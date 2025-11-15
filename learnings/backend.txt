@@ -66,3 +66,62 @@ Example: spring-boot-starter-test (as used in our pom.xml)
 Why: Testing frameworks are only needed for testing. NOT transitive because your module's tests are internal - other modules using your code don't need your test dependencies.
 
 Details of application.properties
+
+Maven lifecycle (what happens when you build)
+
+1. `mvn clean`
+     - Deletes the `target/` directory (removes compiled `.class` files, packaged JARs, and other build artifacts).
+     - Start with a clean slate for the next build.
+
+2. `mvn install` (runs the default lifecycle up to `install`)
+     - Maven reads `pom.xml` to learn project coordinates, plugins, and dependencies.
+     - Dependency & plugin resolution: checks `~/.m2/repository` for required jars/plugins; if missing, downloads them from remote repositories (e.g., Maven Central) and stores them in `~/.m2/repository`.
+     - Runs lifecycle phases in order (each phase implies the previous ones):
+         * `validate` — verify project structure and `pom.xml` are correct.
+         * `compile` — compile `src/main/java` to `.class` files in `target/classes/`.
+         * `test` — compile and run tests from `src/test/java` (build fails if tests fail unless skipped).
+         * `package` — create a distributable artifact (for example `target/<artifactId>-<version>.jar`).
+         * `install` — copy the packaged artifact into the local Maven repository (`~/.m2/repository`) so other local projects can consume it.
+
+Local repository path format:
+        ~/.m2/repository/<groupId with slashes>/<artifactId>/<version>/<artifactId>-<version>.jar
+
+Example:
+    If `groupId` = `com.example`, `artifactId` = `my-app`, `version` = `1.0`, then after `mvn install` you'll find:
+        ~/.m2/repository/com/example/my-app/1.0/my-app-1.0.jar
+
+Common flags:
+    - `mvn -DskipTests install`  (compile tests but don't run them)
+    - `mvn -Dmaven.test.skip=true install`  (skip compiling and running tests)
+    - `mvn clean install`  (clean first, then build and install)
+
+Important note:
+    - `install` copies artifacts to your local machine only. Uploading to a remote repository (Nexus/Artifactory) requires `mvn deploy` and proper `distributionManagement` configuration.
+
+
+Three ways to define/set a classpath (runtime)
+
+1) Using the `-cp` (or `-classpath`) flag — one-off for that java (or javac) command
+     - Linux/macOS example:
+         java -cp /path/to/lib1.jar:/path/to/lib2.jar:/path/to/classes com.example.App
+     - Windows example (use `;` as separator):
+         java -cp C:\path\to\lib1.jar;C:\path\to\lib2.jar;C:\path\to\classes com.example.App
+
+2) Using the `CLASSPATH` environment variable (persists for the shell session)
+     - Linux/macOS:
+         export CLASSPATH=/path/to/lib1.jar:/path/to/lib2.jar:/path/to/classes
+         java com.example.App
+     - Windows (Command Prompt):
+         set CLASSPATH=C:\path\to\lib1.jar;C:\path\to\lib2.jar;C:\path\to\classes
+         java com.example.App
+
+3) Using Maven (automatic) — Maven builds the classpath from `pom.xml` for you
+     - `mvn compile`         # sets up the compile classpath
+     - `mvn test`            # sets up the test classpath
+     - `mvn exec:java`       # sets up the runtime classpath and runs the app
+
+
+For compile time (javac)
+
+1) Use `javac -cp` to set the compile-time classpath:
+     javac -cp /path/to/lib.jar src/main/java/com/example/App.java -d target/classes

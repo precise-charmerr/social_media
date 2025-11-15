@@ -298,4 +298,160 @@ mvn dependency:tree -Dincludes=groupId:artifactId  # filter for a specific depen
 This shows which libraries are pulled in directly and which are transitive (and the scope for each).
 
 ---
+
+## Maven Lifecycle: clean and install
+
+Understanding what happens when you run Maven commands is essential for effective project management.
+
+### 1. `mvn clean`
+
+**What it does:**
+- Deletes the entire `target/` directory (and everything in it)
+- Removes all previously compiled `.class` files, packaged JARs, and build artifacts
+- Gives you a "clean slate" to start a fresh build
+
+**Why use it:**
+- Ensures no stale or outdated compiled files interfere with your new build
+- Helps debug weird build issues
+
+**Example:**
+```bash
+mvn clean
+```
+
+---
+
+### 2. `mvn install`
+
+**What it does (in detail):**
+
+`mvn install` is actually a shortcut that runs the entire Maven default lifecycle up to and including the `install` phase. Here's what happens step by step:
+
+#### **Phase 1: Validation**
+- Maven checks if the project structure and `pom.xml` are correct
+- Verifies all required information is present
+
+#### **Phase 2: Download Dependencies**
+- Maven reads your `pom.xml` and identifies all declared dependencies
+- Checks your local repository (`~/.m2/repository`) for each dependency
+- **If a dependency is missing locally**, Maven downloads it from the configured remote repository (e.g., Maven Central Repository) over the internet
+- **Only happens once per dependency** — subsequent runs find it locally and skip the download
+
+#### **Phase 3: Compile**
+- Maven compiles all `.java` files in `src/main/java/` into bytecode (`.class` files)
+- Stores compiled classes in `target/classes/`
+- Uses the compile classpath, which includes all dependencies with scope `compile`, `provided`, and resolved transitive dependencies
+
+#### **Phase 4: Test**
+- Maven compiles test source code from `src/test/java/` into `target/test-classes/`
+- Runs all tests using the test classpath
+- **If any test fails, the build stops** (unless you explicitly skip tests)
+
+#### **Phase 5: Package**
+- Maven packages the compiled classes and resources into a distributable format
+- Creates a `.jar` file (Java Archive) or `.war` file (for web apps)
+- Stores the packaged artifact in `target/`
+- Example: `target/my-app-1.0.jar`
+
+#### **Phase 6: Install**
+- Maven takes the packaged artifact (the `.jar` file) from `target/`
+- Copies it into your **local Maven repository** (`~/.m2/repository`)
+- Uses your project's Maven coordinates (groupId, artifactId, version) to determine the location
+- **Why?** Other local projects can now declare this project as a dependency without rebuilding it from source
+
+**Local Repository Path Format:**
+```
+~/.m2/repository/<groupId with slashes>/<artifactId>/<version>/<artifactId>-<version>.jar
+```
+
+**Example:**
+- If your `pom.xml` has:
+  ```xml
+  <groupId>com.example</groupId>
+  <artifactId>my-app</artifactId>
+  <version>1.0</version>
+  ```
+- After `mvn install`, the jar will be at:
+  ```
+  ~/.m2/repository/com/example/my-app/1.0/my-app-1.0.jar
+  ```
+
+---
+
+### Common `mvn install` Variations
+
+**Compile and install (run all tests):**
+```bash
+mvn install
+```
+
+**Compile and install (skip running tests, but still compile them):**
+```bash
+mvn -DskipTests install
+```
+
+**Compile and install (skip compiling and running tests entirely):**
+```bash
+mvn -Dmaven.test.skip=true install
+```
+
+---
+
+### `mvn clean install` (Most Common)
+
+**What it does:**
+- Runs `clean` first (removes the `target/` directory)
+- Then runs `install` (downloads deps, compiles, tests, packages, installs)
+- Provides a completely fresh build from scratch
+
+**When to use:**
+- Starting a new build cycle
+- Debugging build issues
+- Ensuring no old artifacts interfere
+
+**Example:**
+```bash
+mvn clean install
+```
+
+---
+
+### Important Notes
+
+- **`install` does NOT upload to a remote repository** — that's done by `mvn deploy` (requires `distributionManagement` config in `pom.xml`)
+- **`install` is for your local machine only** — places artifacts in `~/.m2/repository` so other projects on the same machine can use them as dependencies
+- **Dependency downloads happen automatically** — you don't need to manually download JARs; Maven handles it
+- **Transitive dependencies are resolved** — if your declared dependency also depends on other libraries, Maven pulls those in automatically (unless scope prevents it)
+
+---
 You can copy this into your repository README or keep it under `backend/` for quick reference.
+
+## Three ways to define/set a classpath
+
+**(for runtime)**
+
+1. Using the `-cp` flag (one-off, per-run):
+```bash
+java -cp C:\path\to\lib1.jar;C:\path\to\lib2.jar;C:\path\to\classes com.example.App
+```
+
+2. Using the `CLASSPATH` environment variable (persistent for the shell session):
+```bash
+export CLASSPATH=/path/to/lib1.jar:/path/to/lib2.jar:/path/to/classes
+java com.example.App
+```
+
+3. Using Maven (automatic — Maven builds the correct classpath from `pom.xml`):
+```bash
+mvn compile         # Maven sets up the compile classpath
+mvn test            # Maven sets up the test classpath
+mvn exec:java       # Maven sets up the runtime classpath and runs the app
+```
+
+**(for compile time)**
+
+1. Using `javac -cp` to set the compile-time classpath:
+```bash
+javac -cp /path/to/lib.jar src/main/java/com/example/App.java -d target/classes
+```
+
