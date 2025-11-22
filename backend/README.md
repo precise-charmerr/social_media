@@ -455,3 +455,135 @@ mvn exec:java       # Maven sets up the runtime classpath and runs the app
 javac -cp /path/to/lib.jar src/main/java/com/example/App.java -d target/classes
 ```
 
+## application.properties Configuration
+
+The `application.properties` file (located at `src/main/resources/application.properties`) is a Spring Boot configuration file that controls how your application behaves at runtime. Instead of hardcoding settings in Java code, you put them here where they're easy to change without recompiling.
+
+**What happens:** When Spring Boot starts, it reads `application.properties` and configures the embedded Tomcat server, database connection, security settings, and other components based on these properties.
+
+### Database Configuration
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/social_media_db?createDatabaseIfNotExist=true
+spring.datasource.username=root
+spring.datasource.password=root
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+```
+- **spring.datasource.url** — The database connection string (JDBC URL)
+  - `jdbc:mysql://` — Use MySQL protocol
+  - `localhost:3306` — Connect to MySQL running on your local machine, port 3306 (default MySQL port)
+  - `social_media_db` — The database name to use
+  - `?createDatabaseIfNotExist=true` — Automatically create the database if it doesn't exist (very convenient for development!)
+- **spring.datasource.username** — Username to authenticate with MySQL: `root`
+- **spring.datasource.password** — Password to authenticate with MySQL: `root`
+  - ⚠️ Security Warning: Storing passwords in plain text is NOT secure. In production, use environment variables or a secrets manager.
+- **spring.datasource.driver-class-name** — Specifies the JDBC driver class
+  - `com.mysql.cj.jdbc.Driver` is the MySQL Connector/J driver (declared in `pom.xml` with `runtime` scope)
+  - **How it works:** When you set this property, Spring Boot explicitly loads the driver class using `Class.forName()`, which triggers the driver's static initializer to register itself with Java's DriverManager.
+  - **When you need it:** Normally Spring auto-detects the driver from the JDBC URL. But if you get `java.sql.SQLException: No suitable driver found`, adding this property tells Spring exactly which driver class to load and use.
+  - **Example scenario:**
+    - Without it: Spring guesses which driver to use from `jdbc:mysql://...` URL — fails if driver isn't registered
+    - With it: Spring loads `com.mysql.cj.jdbc.Driver` explicitly → driver registers itself → DataSource is created ✅
+
+### JPA/Hibernate Configuration
+
+```properties
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+```
+- **spring.jpa.hibernate.ddl-auto=update** — Automatic database schema management
+  - `update` = Automatically update the database schema when your Java `@Entity` classes change (add/remove fields, etc.)
+  - Other options: `create`, `create-drop`, `validate`, `none`
+  - ⚠️ Caution: `update` is useful during development but risky in production (can accidentally drop columns). Switch to `validate` in production.
+- **spring.jpa.show-sql=true** — Print all executed SQL queries to the console
+- **spring.jpa.properties.hibernate.format_sql=true** — Pretty-print SQL queries for readable logs
+- **spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect** — Specify the SQL dialect for MySQL 8
+  - **What it does:** Tells Hibernate exactly which SQL dialect to use when generating queries. A dialect is a set of rules for how SQL should be written for a specific database (MySQL, PostgreSQL, Oracle, etc.).
+  - **Why it's important:** Different databases have slightly different SQL syntax, functions, and data types. By setting the dialect, Hibernate knows how to:
+    - Format queries correctly for MySQL 8
+    - Use MySQL-specific features (like LIMIT, AUTO_INCREMENT, etc.)
+    - Avoid SQL errors due to incompatible syntax
+  - **What happens if you remove it:**
+    - Hibernate will try to guess the dialect based on your JDBC URL and driver. For common databases, this usually works, but:
+      - If it guesses wrong, you may get SQL errors, wrong data types, or unsupported features
+      - For MySQL, it might default to an older dialect (e.g., MySQL5Dialect), which could miss new features or behave differently
+    - In rare cases, Hibernate can't guess and will throw an error at startup
+  - **Best practice:** Always set the dialect explicitly for your database version to ensure correct SQL generation and avoid subtle bugs.
+  - **Example:**
+    - For MySQL 8: `org.hibernate.dialect.MySQL8Dialect`
+    - For MySQL 5: `org.hibernate.dialect.MySQL5Dialect`
+    - For PostgreSQL: `org.hibernate.dialect.PostgreSQLDialect`
+    - For H2 (in-memory): `org.hibernate.dialect.H2Dialect`
+
+### Server Configuration
+
+```properties
+server.port=8080
+```
+- **server.port=8080** — The port the embedded Tomcat web server listens on. Your Spring Boot app will be accessible at http://localhost:8080
+
+### Security Configuration
+
+```properties
+spring.security.user.name=admin
+spring.security.user.password=admin
+```
+- **spring.security.user.name=admin** — Default in-memory user username: `admin`
+- **spring.security.user.password=admin** — Default in-memory user password: `admin`
+- ⚠️ CRITICAL SECURITY WARNING: This is ONLY for local development/testing. Never use hardcoded credentials in production. Use proper authentication and store passwords securely.
+
+### Configuration at Runtime
+You can override any property without editing `application.properties`:
+- Via environment variables:
+  ```bash
+  export SPRING_DATASOURCE_URL=jdbc:mysql://prod-db:3306/live_db
+  export SPRING_DATASOURCE_USERNAME=produser
+  export SPRING_DATASOURCE_PASSWORD=secretpassword
+  java -jar myapp.jar
+  ```
+- Via command-line arguments:
+  ```bash
+  java -jar myapp.jar \
+    --spring.datasource.url=jdbc:mysql://prod-db:3306/live_db \
+    --spring.datasource.username=produser \
+    --spring.datasource.password=secretpassword
+  ```
+- Via system properties:
+  ```bash
+  java -Dspring.datasource.url=jdbc:mysql://prod-db:3306/live_db -jar myapp.jar
+  ```
+
+### Summary Table
+| Property | Purpose | Current Value | Notes |
+|----------|---------|---|---|
+| spring.datasource.url | Database connection string | jdbc:mysql://localhost:3306/social_media_db?createDatabaseIfNotExist=true | Auto-creates DB if missing |
+| spring.datasource.username | DB login user | root | Use env var in production |
+| spring.datasource.password | DB login password | root | Use env var in production |
+| spring.datasource.driver-class-name | JDBC driver | com.mysql.cj.jdbc.Driver | MySQL connector |
+| spring.jpa.hibernate.ddl-auto | Schema sync strategy | update | Change to validate in production |
+| spring.jpa.show-sql | Log SQL queries | true | Disable in production for performance |
+| spring.jpa.properties.hibernate.format_sql | Pretty-print SQL | true | For readable logs |
+| spring.jpa.properties.hibernate.dialect | SQL dialect | org.hibernate.dialect.MySQL8Dialect | MySQL 8 specific |
+| server.port | Web server port | 8080 | Access at http://localhost:8080 |
+| spring.security.user.name | Default username | admin | Development only |
+| spring.security.user.password | Default password | admin | Development only |
+
+## Environment variable → property mapping (relaxed binding)
+
+Spring Boot supports "relaxed binding": environment variables and different property name styles are treated as equivalent so you can set configuration in the way your OS or platform prefers.
+
+- Rule (simple): environment variables are uppercased with underscores, Spring properties are lowercase with dots/hyphens. Spring converts and matches between them automatically.
+
+- Examples:
+  - `SPRING_DATASOURCE_URL` → `spring.datasource.url`
+  - `SPRING_DATASOURCE_USERNAME` → `spring.datasource.username`
+  - `SPRING_JPA_HIBERNATE_DDL_AUTO` → `spring.jpa.hibernate.ddl-auto`
+
+- Notes:
+  - Underscores, hyphens and dots are treated interchangeably by relaxed binding (so `SPRING-JPA-HIBERNATE-DDL-AUTO`, `SPRING_JPA_HIBERNATE_DDL_AUTO` and `spring.jpa.hibernate.ddl-auto` all map to the same property).
+  - When you override a whole value (for example the JDBC URL), you replace it entirely — include any query parameters you need (eg. `?createDatabaseIfNotExist=true`) in the environment variable if you want that behavior.
+
+This makes it easy to configure apps in Docker, Kubernetes, CI/CD pipelines, or when using OS environment variables.
+
